@@ -78,9 +78,9 @@ Instructions on how to use the app can be found [here](tutorial/).
 
 ## Example data sets
 
-1.  The example data set was taken form the work of [Oliinyk et al. Proteomics, 2023](https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/full/10.1002/pmic.202200032) ([ProteomeXchange](http://www.proteomexchange.org/) consortium ID: [PDX033904](https://www.ebi.ac.uk/pride/archive/projects/PXD033904)). The data can be found here.
+1.  The example data set was taken form the work of [Oliinyk et al. Proteomics, 2023](https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/full/10.1002/pmic.202200032) ([ProteomeXchange](http://www.proteomexchange.org/) consortium ID: [PDX033904](https://www.ebi.ac.uk/pride/archive/projects/PXD033904)). The data can be found [here](https://bruker-my.sharepoint.com/:f:/p/alvaro_vaca_jacome/Eosb5HZF8mlDrVQexRYNYQ0BNfN8BKYNPq6nYlVLKJ6Ltg?e=kN6gII).
 
-2.  The second example data set consists of BSA peptides spiked in a human digest (Promega K562) to create a dilution series sample set, ranging in peptide concentrations from 380 amol to 12.5 fmol. The data was acquired on a Bruker timsTOF HT coupled to an EvoSep (30SPD). The data can be found here.
+2.  The second example data set consists of BSA peptides spiked in a human digest (Promega K562) to create a dilution series sample set, ranging in peptide concentrations from 380 amol to 12.5 fmol. The data was acquired on a Bruker timsTOF HT coupled to an EvoSep (30SPD). The data can be found [here](https://bruker-my.sharepoint.com/:f:/p/alvaro_vaca_jacome/EhppWmz2pmFPmsQZ8joJyo4BE-QxnV-KLytNBXBRwMlxSg?e=cbvUJA).
 
 A poster summarizing the results of these two data sets was presented at [ASMS Houston 2023](https://www.asms.org/conferences/annual-conference/annual-conference-homepage), and is available upon request.
 
