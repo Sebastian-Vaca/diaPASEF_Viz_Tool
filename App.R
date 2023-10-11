@@ -32,9 +32,8 @@ ui <- dashboardPage(
       checkboxInput("reassign_checkbox_input", "Reassign/Reorder groups", T),
       checkboxInput("remove_checkbox_input", "Remove selected runs", F),
       
-      tags$hr()#,
+      tags$hr()
       
-      # img(src = "diaQuito.png", height = 150, width = 180)
 
     )
   ),
@@ -43,7 +42,7 @@ ui <- dashboardPage(
       # First tab content
       tabItem(tabName = "Parameters",
               shinyjs::useShinyjs(),
-              titlePanel("dia-PASEF Visualization Tools (v23.05.5)"),
+              titlePanel("dia-PASEF Visualization Tools (v23.10.2)"),
               radioButtons("radio_input_software",
                            label = h3("Which software?"),
                            choices = list("Spectronaut" = "Spectronaut",
@@ -130,21 +129,31 @@ ui <- dashboardPage(
       tabItem(tabName = "metrics_counts",
               tabsetPanel(type = "tabs",
                           tabPanel("Counts per MS Run",
-                                   selectInput(inputId = "countsPerRun_plot_type", label ="What do you want to plot?",
+                                   selectInput(inputId = "countsPerRun_plot_type", label ="What do you want to plot? [Leave blank to see all]",
                                                choices = c("Precursors","Peptides","Proteins","Proteins_with2pepts"), multiple = T),
                                    plotOutput("Counts_per_MSRun")),
                           tabPanel("Unique counts per Condition", plotOutput("Counts")),
                           tabPanel("Mean counts per Condition",
-                                   selectInput(inputId = "CountsErrorBars_plot_type", label ="What do you want to plot?",
+                                   selectInput(inputId = "CountsErrorBars_plot_type", label ="What do you want to plot? [Leave blank to see all]",
                                                choices = c("Precursors","Peptides","Proteins","Proteins_with2pepts"), multiple = T),
                                    plotOutput("CountsErrorBars")),
-                          tabPanel("Data Completeness", plotOutput("data_completeness"))
+                          tabPanel("Data Completeness", plotOutput("data_completeness")),
+                          tabPanel("Peptides per Protein",
+                                   selectInput(inputId = "PeptidesperProtein_item", label ="What do you want to plot?",
+                                               choices = c("Precursors","Peptides"), multiple = F),
+                                   selectInput(inputId = "PeptidesperProtein_plotType", label ="How do you want to plot it?",
+                                               choices = c("histogram","boxplot"), multiple = F),
+                                   selectizeInput(inputId = "PeptidesperProtein_item_conditions", label ="Select Conditions [Leave blank to see all]",
+                                                  choices = NULL, multiple = T, options = list(maxItems = 10)),
+                                   checkboxInput("PeptidesperProtein_outliers_checkbox", "Remove outliers (95th percentile)", value = T),
+                                   actionButton(inputId = "PeptidesperProtein_actionbutton",label = "Update plot", style="color: #FFFFFF; background-color: #0071BC"),
+                                   hidden(div(id= "PeptidesperProtein_hider", plotOutput("PeptidesperProtein_plot") %>% withSpinner()) )) 
                           )
       ),
       tabItem(tabName = "metrics_cvs",
               tabsetPanel(type = "tabs",
                           tabPanel("CV distribution",
-                                   selectizeInput(inputId = "CVs_conditions", label ="Select Conditions",
+                                   selectizeInput(inputId = "CVs_conditions", label ="Select Conditions [Leave blank to see all]",
                                                   choices = "Null", multiple = T, options = list(maxItems = 5)),
                                    selectInput(inputId = "CVs_level", label ="Select Protein/Peptide level",
                                                choices = c("Protein", "Precursor"), multiple = F),
@@ -156,16 +165,23 @@ ui <- dashboardPage(
                                    ),
                           tabPanel("CV cutoff: Precursor level",
                                    fluidRow(
-                                     selectizeInput(inputId = "CVs_cutoff_precursors_conditions", label ="Select Conditions",
+                                     selectizeInput(inputId = "CVs_cutoff_precursors_conditions", label ="Select Conditions [Leave blank to see all]",
                                                     choices = "Null", multiple = T, options = list(maxItems = 10)),
-                                     plotOutput("CVs_cutoff_Precursors"))),
+                                     selectInput(inputId = "CVs_cutoff_precursors_type", label ="What would you like to plot? [Leave blank to see all]",
+                                                 choices = c("Identified","Quantified","CV < 40","CV < 20","CV < 10"), multiple = T),
+                                     actionButton(inputId = "CVs_cutoff_precursors_actionbutton",label = "Update plot", style="color: #FFFFFF; background-color: #0071BC"),
+                                     hidden(div(id= "CVs_cutoff_precursors_Plot_hider", plotOutput("CVs_cutoff_Precursors") %>% withSpinner())))
+                                   ),
                           tabPanel("CV cutoff: Protein Group level",
                                    fluidRow(
-                                     selectizeInput(inputId = "CVs_cutoff_proteins_conditions", label ="Select Conditions",
+                                     selectizeInput(inputId = "CVs_cutoff_proteins_conditions", label ="Select Conditions [Leave blank to see all]",
                                                     choices = "Null", multiple = T, options = list(maxItems = 10)),
-                                     plotOutput("CVs_cutoff_Proteins")))
-              )
-      ),
+                                     selectInput(inputId = "CVs_cutoff_proteins_type", label ="What would you like to plot? [Leave blank to see all]",
+                                                 choices = c("Identified","Quantified","CV < 40","CV < 20","CV < 10"), multiple = T),
+                                     actionButton(inputId = "CVs_cutoff_proteins_actionbutton",label = "Update plot", style="color: #FFFFFF; background-color: #0071BC"),
+                                     hidden(div(id= "CVs_cutoff_proteins_Plot_hider", plotOutput("CVs_cutoff_proteins") %>% withSpinner()))))
+                          )
+              ),
       
       tabItem(tabName = "metrics_dynamicRange",
               tabsetPanel(type = "tabs",
@@ -183,7 +199,7 @@ ui <- dashboardPage(
               tabsetPanel(type = "tabs",
                           tabPanel("Metric distributions",
                                    fluidRow(
-                                     selectizeInput(inputId = "BoxHist_conditions", label ="Select Conditions",
+                                     selectizeInput(inputId = "BoxHist_conditions", label ="Select Conditions [Leave blank to see all]",
                                                     choices = "Null", multiple = T, options = list(maxItems = 5)),
                                      selectizeInput(inputId = "BoxHist_metric_to_plot", label ="Select Metric",
                                                     choices = NULL, multiple = F),
@@ -192,6 +208,22 @@ ui <- dashboardPage(
                                      checkboxInput("BoxHist_checkbox", "Remove outliers (5th and 95th percentile)", T),
                                      actionButton(inputId = "BoxHist_actionbutton",label = "Update plot", style="color: #FFFFFF; background-color: #0071BC"),
                                      hidden(div(id= "BoxHist_Plot_hider", plotOutput("BoxHist_Plot") %>% withSpinner() ))
+                                   )),
+                          tabPanel("Peptide lenghts",
+                                   fluidRow(
+                                     selectizeInput(inputId = "PeptideLength_conditions", label ="Select Conditions [Leave blank to see all]",
+                                                    choices = "Null", multiple = T, options = list(maxItems = 10)),
+                                     selectInput(inputId = "PeptideLength_plot_type", label ="Select plot type",
+                                                 choices = c("freqpoly", "histogram"), multiple = F),
+                                     actionButton(inputId = "PeptideLength_actionbutton",label = "Update plot", style="color: #FFFFFF; background-color: #0071BC"),
+                                     hidden(div(id= "PeptideLength_Plot_hider", plotOutput("PeptideLength_Plot") %>% withSpinner() ))
+                                   )),
+                          tabPanel("Charge States",
+                                   fluidRow(
+                                     selectizeInput(inputId = "ChargeStates_conditions", label ="Select Conditions [Leave blank to see all]",
+                                                    choices = "Null", multiple = T, options = list(maxItems = 10)),
+                                     actionButton(inputId = "ChargeStates_actionbutton",label = "Update plot", style="color: #FFFFFF; background-color: #0071BC"),
+                                     hidden(div(id= "ChargeStates_Plot_hider", plotOutput("ChargeStates_Plot") %>% withSpinner() ))
                                    )),
                           tabPanel("TICs of ID peptides", plotlyOutput("plot_TICS", height = "800px", width = "800px")),
                           
@@ -202,7 +234,7 @@ ui <- dashboardPage(
               tabsetPanel(type = "tabs",
                           tabPanel("Correlations",
                                    fluidRow(
-                                     selectizeInput(inputId = "CorrPlot_conditions", label ="Select Conditions",
+                                     selectizeInput(inputId = "CorrPlot_conditions", label ="Select Conditions [Leave blank to see all]",
                                                     choices = "Null", multiple = T, options = list(maxItems = 5)),
                                      selectInput(inputId = "CorrPlot_metric_to_plot", label ="Select Metric",
                                                  choices = c("PG.MS2Quantity","FG.MS2Quantity", "EG.IonMobility", "EG.ApexRT"), multiple = F),
@@ -243,12 +275,12 @@ ui <- dashboardPage(
                                    selectInput("ptm_counts_selectinput", "Select modification", choices = "Null"),
                                    tableOutput("Modifications_found_table")),
                           tabPanel("PTMs: Mean counts per replicate",
-                                   selectInput(inputId = "PTMcounts_plot_type", label ="What do you want to plot?",
+                                   selectInput(inputId = "PTMcounts_plot_type", label ="What do you want to plot? [Leave blank to see all]",
                                                choices = c("Precursors","Peptides","Proteins","Proteins_with2pepts"), multiple = T),
                                    plotOutput("PTM_plot_Counts")),
                           tabPanel("PTMs: Enrichment yield",
                                    selectInput(inputId = "PTMenrich_plot_type", label ="What do you want to plot?",
-                                               choices = c("Precursors","Peptides","Proteins","Proteins_with2pepts"), multiple = T),
+                                               choices = c("Precursors","Peptides","Proteins","Proteins_with2pepts [Leave blank to see all]"), multiple = T),
                                    plotOutput("PTM_EnrichYield")),
                           tabPanel("PTMs: CVs", plotOutput("PTM_CVs"))
               )
@@ -257,13 +289,30 @@ ui <- dashboardPage(
       tabItem(tabName = "Upset_plots",
               tabsetPanel(type = "tabs",
                           tabPanel("Proteins with condition filter",
-                                   selectizeInput(inputId = "upset_Prots_withConditionsFilter_conditions", label ="Select Conditions",
+                                   selectizeInput(inputId = "upset_Prots_withConditionsFilter_conditions", label ="Select Conditions [Leave blank to see all]",
                                                   choices = NULL, multiple = T, options = list(maxItems = 10)),
-                                   plotOutput("upset_plot_prots_withConditionsFilter")),
+                                   actionButton(inputId = "upset_plot_prots_actionbutton",label = "Refresh plot", style="color: #FFFFFF; background-color: #0071BC"),
+                                   h6("Download upset matrix"),
+                                   hidden(div(id="upset_plot_prots_hider_1",
+                                              uiOutput("upset_plot_prots_downloadRender") %>% 
+                                                withSpinner(type = 2, color.background =  "#0071BC"))),
+                                   hidden(div(id="upset_plot_prots_hider_2",
+                                              plotOutput("upset_plot_prots_withConditionsFilter") %>%
+                                                withSpinner() ))
+                                   ),
                           tabPanel("Precursors with condition filter",
-                                   selectizeInput(inputId = "upset_Precs_withConditionsFilter_conditions", label ="Select Conditions",
+                                   selectizeInput(inputId = "upset_Precs_withConditionsFilter_conditions", label ="Select Conditions [Leave blank to see all]",
                                                   choices = NULL, multiple = T, options = list(maxItems = 10)),
-                                   plotOutput("upset_plot_precs_withConditionsFilter"))
+                                   actionButton(inputId = "upset_plot_precs_actionbutton",label = "Refresh plot", style="color: #FFFFFF; background-color: #0071BC"),
+                                   h6("Download upset matrix"),
+                                   hidden(div(id="upset_plot_precs_hider_1",
+                                              uiOutput("upset_plot_precs_downloadRender") %>% 
+                                                withSpinner(type = 2, color.background =  "#0071BC"))),
+                                   hidden(div(id="upset_plot_precs_hider_2",
+                                              plotOutput("upset_plot_precs_withConditionsFilter") %>%
+                                                withSpinner() ))
+                                   )
+                                    
               )
       ),
       ## Dilution series
@@ -338,7 +387,7 @@ ui <- dashboardPage(
       )
     ),
     
-    ## Apearance
+    ## Appearance
     tags$head(
       tags$style(HTML(".skin-blue .main-sidebar {background-color:  #004E82;}
                       .skin-blue .main-header .logo {background-color: #0071BC;}
@@ -351,7 +400,7 @@ ui <- dashboardPage(
 # Define server logic to read selected file ----
 server <- function(input, output) {
   
-  options(shiny.maxRequestSize = 5000*1024^2)
+  options(shiny.maxRequestSize = 15000*1024^2)
   
   ### Parameters
   
@@ -599,24 +648,113 @@ server <- function(input, output) {
     return(metadata_input())
   })
   
-
+  ### Upset Plots
   observeEvent(input$groups_id_csv, {
     updateSelectInput(inputId = "upset_Prots_withConditionsFilter_conditions", choices = unique(metadata_input()[,"R.Condition"]))
     updateSelectInput(inputId = "upset_Precs_withConditionsFilter_conditions", choices = unique(metadata_input()[,"R.Condition"]))
     
   })
-  
-  output$upset_plot_prots_withConditionsFilter <- renderPlot({
+  #### Upset Prots
+
+  Upset_protein_matrix <- eventReactive(input$upset_plot_prots_actionbutton, {
     
-    upset_plot_from_spectronaut_prots_withConditionsFilter(data_input(),
-                                                           input$upset_Prots_withConditionsFilter_conditions)
+    Upset_protein_matrix <- upset_plot_from_spectronaut_prots_matrix(
+      data_input(),
+      input$upset_Prots_withConditionsFilter_conditions)
+    
   })
   
-  output$upset_plot_precs_withConditionsFilter <- renderPlot({
+  observeEvent(input$upset_plot_prots_actionbutton, {
+    show("upset_plot_prots_hider_1")
+    toggle(id = "upset_plot_prots_downloadRender", condition = T)
+    show("upset_plot_prots_hider_2")
+    toggle(id = "upset_plot_prots_withConditionsFilter", condition = T)
     
-    upset_plot_from_spectronaut_precs_withConditionsFilter(data_input(),
-                                                           input$upset_Precs_withConditionsFilter_conditions)
+    output$upset_plot_prots_withConditionsFilter <- renderPlot({
+      
+      isolate({
+        G = upset_plot_from_spectronaut_prots_withConditionsFilter(data_input(),
+                                                                   input$upset_Prots_withConditionsFilter_conditions)
+      })
+      
+      G
+    })
   })
+
+  observeEvent(input$upset_plot_prots_actionbutton, {
+    output$upset_plot_prots_downloadRender <- renderUI({
+      isolate({
+        req(Upset_protein_matrix())
+        downloadButton("upset_plot_prots_Download")
+      })
+    })
+  })
+  
+  output$upset_plot_prots_Download <- downloadHandler(
+    
+    filename = function() {
+      paste("Upset_proteins-", Sys.Date(), ".csv", sep="")
+    },
+    
+    content = function(file) {
+      counts = Upset_protein_matrix()
+      
+      fwrite(counts, file, sep = ",")
+    })
+  
+
+  #### Upset Precursors
+  Upset_precursors_matrix <- eventReactive(input$upset_plot_precs_actionbutton, {
+
+      Upset_precursors_matrix <- upset_plot_from_spectronaut_precs_matrix(
+        data_input(),
+        input$upset_Precs_withConditionsFilter_conditions)
+
+    })
+  
+  observeEvent(input$upset_plot_precs_actionbutton, {
+    show("upset_plot_precs_hider_1")
+    toggle(id = "upset_plot_precs_downloadRender", condition = T)
+    show("upset_plot_precs_hider_2")
+    toggle(id = "upset_plot_precs_withConditionsFilter", condition = T)
+    
+    output$upset_plot_precs_withConditionsFilter <- renderPlot({
+    
+      isolate({
+      G = upset_plot_from_spectronaut_precs_withConditionsFilter(data_input(),
+                                                             input$upset_Precs_withConditionsFilter_conditions)
+      })
+      
+      G
+    })
+  })
+  
+  observeEvent(input$upset_plot_precs_actionbutton, {
+    output$upset_plot_precs_downloadRender <- renderUI({
+      isolate({
+        req(Upset_precursors_matrix())
+       downloadButton("upset_plot_precs_Download")
+      })
+    })
+  })
+  
+output$upset_plot_precs_Download <- downloadHandler(
+
+    filename = function() {
+      paste("Upset_precursors-", Sys.Date(), ".csv", sep="")
+    },
+    
+    content = function(file) {
+      counts = Upset_precursors_matrix()
+      
+      fwrite(counts, file, sep = ",")
+})
+    
+  
+
+  
+  
+  ## Counts
   
   output$Counts_per_MSRun <- renderPlot({
     # 
@@ -653,6 +791,43 @@ server <- function(input, output) {
     
     plot_TICS(data_input())
     
+  })
+  
+  # Peptides per Protein
+  
+  Precursors_per_Protein_dt <- reactive({
+    req(input$file1)
+    req(input$groups_id_csv)
+    
+    Precursors_per_Protein_dt <- Precursors_per_Protein(data_input())
+    Precursors_per_Protein_dt
+  })
+  
+  observeEvent(input$groups_id_csv, {
+    updateSelectInput(inputId = "PeptidesperProtein_item_conditions", choices = unique(metadata_input()[,"R.Condition"]))
+  })
+  
+  observeEvent(input$PeptidesperProtein_actionbutton, {
+    req(input$file1)
+    req(input$groups_id_csv)
+    
+    show("PeptidesperProtein_hider")
+    toggle(id = "PeptidesperProtein_plot", condition = T)
+    
+    output$PeptidesperProtein_plot<- renderPlot({
+      
+      isolate({
+        G = plot_number_of_peptides(Precursors_per_Protein_dt = Precursors_per_Protein_dt(),
+                                    item = input$PeptidesperProtein_item,
+                                    conditions = input$PeptidesperProtein_item_conditions,
+                                    remove_outliers = input$PeptidesperProtein_outliers_checkbox,
+                                    plot_type = input$PeptidesperProtein_plotType)
+          
+      })
+      
+      G
+      
+    })
   })
   
   output$watefall_plot_simplified <- renderPlot({
@@ -954,6 +1129,50 @@ server <- function(input, output) {
     })
   })
   
+  observeEvent(input$groups_id_csv, {
+    updateSelectInput(inputId = "PeptideLength_conditions", choices = unique(metadata_input()[,"R.Condition"]))
+    updateSelectInput(inputId = "ChargeStates_conditions", choices = unique(metadata_input()[,"R.Condition"]))
+    
+  })
+  
+  observeEvent(input$PeptideLength_actionbutton, {
+    req(input$file1)
+    req(input$groups_id_csv)
+    
+    show("PeptideLength_Plot_hider")
+    toggle(id = "PeptideLength_Plot", condition = T)
+    
+    output$PeptideLength_Plot<- renderPlot({
+      
+      isolate({
+        G = plot_peptide_length(dt = data_input(),
+                               conditions = input$PeptideLength_conditions,
+                               type = input$PeptideLength_plot_type)
+      })
+      
+      G
+      
+    })
+  })
+  
+  observeEvent(input$ChargeStates_actionbutton, {
+    req(input$file1)
+    req(input$groups_id_csv)
+    
+    show("ChargeStates_Plot_hider")
+    toggle(id = "ChargeStates_Plot", condition = T)
+    
+    output$ChargeStates_Plot<- renderPlot({
+      
+      isolate({
+        G = plot_charge_states(dt = data_input(),
+                               conditions = input$ChargeStates_conditions)
+      })
+      
+      G
+      
+    })
+  })
   
   #### PTMS
 
@@ -1144,16 +1363,61 @@ server <- function(input, output) {
     updateSelectInput(inputId = "CVs_cutoff_proteins_conditions", choices =unique(metadata_input()[,"R.Condition"]))
   })
   
-  output$CVs_cutoff_Precursors <- renderPlot({
-    plot_CVs_counts_Precursor(CVs_data(), data_input(),
-                              input$reassign_checkbox_input,
-                              input$CVs_cutoff_precursors_conditions)
+  observeEvent(input$CVs_cutoff_precursors_actionbutton, {
+    req(input$file1)
+    req(input$groups_id_csv)
+    
+    show("CVs_cutoff_precursors_Plot_hider")
+    toggle(id = "CVs_cutoff_Precursors", condition = T)
+    
+    
+    output$CVs_cutoff_Precursors<- renderPlot({
+      
+      isolate({
+        
+        G = plot_CVs_counts_Precursor(CVs_data(), data_input(),
+                                      input$reassign_checkbox_input,
+                                      input$CVs_cutoff_precursors_conditions,
+                                      type = input$CVs_cutoff_precursors_type)
+        
+        
+        
+      })
+      
+      G
+      
+    })
   })
-  output$CVs_cutoff_Proteins <- renderPlot({
-    plot_CVs_counts_Protein(CVs_proteins_data(), data_input(),
-                            input$reassign_checkbox_input,
-                            input$CVs_cutoff_proteins_conditions)
+  
+  observeEvent(input$CVs_cutoff_proteins_actionbutton, {
+    req(input$file1)
+    req(input$groups_id_csv)
+    
+    show("CVs_cutoff_proteins_Plot_hider")
+    toggle(id = "CVs_cutoff_proteins", condition = T)
+    
+    
+    output$CVs_cutoff_proteins<- renderPlot({
+      
+      isolate({
+        
+        G = plot_CVs_counts_Protein(CVs_proteins_data(), data_input(),
+                                      input$reassign_checkbox_input,
+                                      input$CVs_cutoff_proteins_conditions,
+                                      type = input$CVs_cutoff_proteins_type)
+      })
+      
+      G
+      
+    })
   })
+  
+
+  # output$CVs_cutoff_Proteins <- renderPlot({
+  #   plot_CVs_counts_Protein(CVs_proteins_data(), data_input(),
+  #                           input$reassign_checkbox_input,
+  #                           input$CVs_cutoff_proteins_conditions)
+  # })
   
   output$data_completeness <- renderPlot({
     plot_data_completeness(data_input())

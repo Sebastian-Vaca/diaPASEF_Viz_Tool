@@ -300,6 +300,31 @@ upset_plot_from_spectronaut_precs_withConditionsFilter <- function(dt, condition
   
   return(upset_plot)
 }
+upset_plot_from_spectronaut_precs_matrix <- function(dt, conditions){
+  
+  if(!is.null(conditions)){
+    dt <- dt %>%
+      filter(R.Condition %in% conditions)
+  }
+  
+  for_upset_precs <- dt %>%
+    filter(!is.na(as.numeric(FG.MS2Quantity))) %>%
+    dplyr::select(R.Condition,EG.ModifiedPeptide,FG.Charge,EG.Qvalue) %>%
+    filter(EG.Qvalue<0.01) %>%
+    mutate(observed = ifelse(is.na(EG.Qvalue), 0 , 1))%>%
+    group_by(R.Condition) %>%
+    dplyr::select(R.Condition,EG.ModifiedPeptide,FG.Charge, observed) %>%
+    mutate(prec_id = paste0(EG.ModifiedPeptide,"_", FG.Charge)) %>%
+    top_n(n = 1, wt = observed) %>%
+    distinct() %>%
+    spread(key = R.Condition, observed) %>%
+    data.frame() %>%
+    replace(is.na(.), 0)
+  rownames(for_upset_precs) <- for_upset_precs$prec_id
+  
+  
+  return(for_upset_precs)
+}
 
 upset_plot_from_spectronaut_prots <- function(dt){
   for_upset_prots <- dt %>%
@@ -352,6 +377,30 @@ upset_plot_from_spectronaut_prots_withConditionsFilter <- function(dt, condition
                      text.scale = c(1.3, 1.3, 1), order.by = "freq") #550x330
   
   return(upset_plot)
+}
+upset_plot_from_spectronaut_prots_matrix <- function(dt, conditions){
+  
+  if(!is.null(conditions)){
+    dt <- dt %>%
+      filter(R.Condition %in% conditions)
+  }
+  
+  for_upset_prots <- dt %>%
+    filter(!is.na(as.numeric(FG.MS2Quantity))) %>%
+    dplyr::select(R.Condition,PG.ProteinGroups, PG.Qvalue) %>%
+    filter(PG.Qvalue<0.01) %>%
+    mutate(observed = ifelse(is.na(PG.Qvalue), 0 , 1))%>%
+    group_by(R.Condition) %>%
+    dplyr::select(R.Condition,PG.ProteinGroups, observed) %>%
+    top_n(n = 1, wt = observed) %>%
+    distinct() %>%
+    spread(key = R.Condition, observed) %>%
+    data.frame() %>%
+    replace(is.na(.), 0) %>%
+    distinct()
+  rownames(for_upset_prots) <- for_upset_prots$PG.ProteinGroups
+  
+  return(for_upset_prots)
 }
 
 ## Metrics
@@ -924,6 +973,231 @@ Boxplot_OneMetric<- function(list_matrices_for_each_metric,
   return(G)
   
 }
+
+plot_charge_states <- function(dt,conditions = NULL){
+  
+  if(length(conditions)>=1) {
+    dt <- dt %>%
+      filter(R.Condition %in% conditions)
+  }
+  
+  dt2 = dt %>%
+    group_by(R.Condition) %>%
+    select(R.Condition, EG.ModifiedPeptide, FG.Charge) %>% 
+    distinct() %>%
+    ungroup() %>%
+    group_by(R.Condition, FG.Charge) %>% 
+    summarise(num_peptides = n_distinct(EG.ModifiedPeptide)) %>%
+    ungroup() %>%
+    group_by(R.Condition) %>%
+    mutate(Percent = paste0(round(num_peptides/sum(num_peptides)*100,1),"%"))
+  
+  
+  dt2$FG.Charge <- factor(dt2$FG.Charge, unique(sort(dt2$FG.Charge)))
+  
+  hjust_adjustment = function(data){
+    data %>%
+      mutate(hjust_value = ifelse(num_peptides>max(num_peptides)/3, 1.1, -0.1))
+  }
+  
+  dt2 <- dt2 %>%
+    ungroup() %>%
+    group_by(R.Condition) %>% 
+    group_modify(~hjust_adjustment(.x))
+  
+  
+  ggplot(dt2, aes(x =FG.Charge, y = num_peptides, fill= FG.Charge))+
+    geom_bar(stat = "identity", color= "black")+
+    facet_wrap(~R.Condition)+
+    theme_bw()+
+    geom_text(aes(label=Percent), hjust=dt2$hjust_value, angle=90,size=3.5, color= "black")+
+    scale_fill_viridis(discrete = T,option = "B",direction = -1)
+  
+}
+
+plot_peptide_length <- function(dt,conditions = NULL,
+                                type = c("histogram", "freqpoly")){
+  
+  if(length(conditions)>=1) {
+    dt <- dt %>%
+      filter(R.Condition %in% conditions)
+  }
+  
+  dt1 = dt %>%
+    select(R.Condition, EG.ModifiedPeptide) %>% 
+    distinct() %>%
+    ungroup() %>%
+    mutate(Sequence = gsub("\\(([^()]|(?R))*\\)", "", EG.ModifiedPeptide, perl=TRUE)) %>%
+    mutate(Sequence = gsub("\\[[^\\]]*\\]", "", Sequence, perl=TRUE))%>%
+    mutate(Sequence = gsub("[^A-Za-z0-9]", ".", Sequence)) %>%
+    mutate(Sequence = gsub("\\.", "", Sequence, perl=TRUE)) %>%
+    mutate(PeptideLength = nchar(Sequence))
+  
+  dt2 <- dt1  %>%
+    group_by(R.Condition, PeptideLength) %>% 
+    summarise(num_peptides = n_distinct(Sequence)) %>%
+    ungroup() %>%
+    group_by(R.Condition) #%>%
+  # mutate(Percent = paste0(round(num_peptides/sum(num_peptides)*100,1),"%"))
+  
+  
+  dt2$PeptideLength <- factor(dt2$PeptideLength, unique(sort(dt2$PeptideLength)))
+  
+  hjust_adjustment = function(data){
+    data %>%
+      mutate(hjust_value = ifelse(num_peptides>max(num_peptides)/3, 1.1, -0.1))
+  }
+  
+  dt2 <- dt2 %>%
+    ungroup() %>%
+    group_by(R.Condition) %>% 
+    group_modify(~hjust_adjustment(.x))
+  
+  if(type == "histogram"){
+    G = ggplot(dt2, aes(x =PeptideLength, y = num_peptides, fill= PeptideLength))+
+      geom_bar(stat = "identity", color= "black")+
+      facet_wrap(~R.Condition)+
+      theme_bw()+
+      # geom_text(aes(label=Percent), hjust=dt2$hjust_value, angle=90,size=3.5, color= "black")+
+      scale_fill_viridis(discrete = T)+
+      theme(axis.text.x = element_text(angle=90),
+            legend.position = "none")
+  }
+  
+  
+  if(type == "freqpoly"){
+    G = ggplot(dt1, aes(x = PeptideLength, color= R.Condition))+
+      geom_freqpoly(binwidth=1)+
+      theme_bw()+
+      scale_fill_viridis(discrete = T)+
+      theme(axis.text.x = element_text(angle=90),
+            legend.position = "none")
+  }
+  
+  return(G)
+  
+  
+  
+  
+}
+
+Precursors_per_Protein <- function(dt){
+  dt2 = dt %>%
+    mutate(run = paste0(R.Condition,"_", R.Replicate)) %>%
+    group_by(R.Condition, run, PG.ProteinGroups) %>%
+    summarise(num_precursors = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge)),
+              num_peptides = n_distinct(paste0(EG.ModifiedPeptide)))
+  
+  return(dt2)
+}
+
+plot_number_of_peptides_hist <- function(Precursors_per_Protein_dt,
+                                         item = c("Precursors", "Peptides"),
+                                         conditions = NULL,
+                                         remove_outliers = F){
+  
+  if(!is.null(conditions)){
+    Precursors_per_Protein_dt = Precursors_per_Protein_dt %>%
+      filter(R.Condition %in% conditions)
+  }
+  
+  
+  if(item == "Precursors"){
+    G = ggplot( Precursors_per_Protein_dt, aes(num_precursors))+
+      geom_histogram(binwidth = 1, color="#313331", fill="#008DEB")+
+      facet_wrap(~run)+
+      theme_bw()
+    if(remove_outliers){
+      G = G +
+        coord_cartesian(xlim = c(0,
+                                 quantile(Precursors_per_Protein_dt$num_precursors,0.95)))
+    }
+  }
+  
+  if(item == "Peptides"){
+    G = ggplot( Precursors_per_Protein_dt, aes(num_peptides))+
+      geom_histogram(binwidth = 1, color="#313331", fill="#008DEB")+
+      facet_wrap(~run)+
+      theme_bw()
+    if(remove_outliers){
+      G = G +
+        coord_cartesian(xlim = c(0,
+                                 quantile(Precursors_per_Protein_dt$num_peptides,0.95)))
+    }
+  }
+  
+  
+  
+  return(G)
+  
+}
+
+plot_number_of_peptides_boxplot<- function(Precursors_per_Protein_dt,
+                                           item = c("Precursors", "Peptides"),
+                                           conditions = NULL,
+                                           remove_outliers = F){
+  
+  if(!is.null(conditions)){
+    Precursors_per_Protein_dt = Precursors_per_Protein_dt %>%
+      filter(R.Condition %in% conditions)
+  }
+  
+  
+  if(item == "Precursors"){
+    G = ggplot(Precursors_per_Protein_dt, aes(x = run , y=num_precursors, fill= R.Condition))+
+      geom_violin()+
+      geom_boxplot(color = "black", width = 0.25, alpha=0.2)+
+      theme_bw()+
+      scale_y_continuous(n.breaks = 20) +
+      theme(axis.text.x = element_text(angle=90),
+            legend.position = "none")
+    if(remove_outliers){
+      G = G +
+        coord_cartesian(ylim = c(0,
+                                 quantile(Precursors_per_Protein_dt$num_precursors,0.95)))
+    }
+  }
+  
+  if(item == "Peptides"){
+    G = ggplot(Precursors_per_Protein_dt, aes(x = run , y=num_peptides, fill= R.Condition))+
+      geom_violin()+
+      geom_boxplot(color = "black", width = 0.25, alpha=0.2)+
+      theme_bw()+
+      scale_y_continuous(n.breaks = 20) +
+      theme(axis.text.x = element_text(angle=90),
+            legend.position = "none")
+    if(remove_outliers){
+      G = G +
+        coord_cartesian(ylim = c(0,
+                                 quantile(Precursors_per_Protein_dt$num_peptides,0.95)))
+    }
+  }
+  
+  
+  
+  return(G)
+  
+}
+
+plot_number_of_peptides <- function(Precursors_per_Protein_dt,
+                                    item = c("Precursors", "Peptides"),
+                                    conditions = NULL,
+                                    remove_outliers = F,
+                                    plot_type = c("histogram", "boxplot")){
+  if(plot_type == "histogram"){
+    H = plot_number_of_peptides_hist(Precursors_per_Protein_dt,
+                                     item , conditions, remove_outliers)
+  }
+  if(plot_type == "boxplot"){
+    H = plot_number_of_peptides_boxplot(Precursors_per_Protein_dt,
+                                        item , conditions, remove_outliers)
+  }
+  
+  return(H)
+  
+}
+
+
 ### CVs
 ## CV precursor level
 Calculate_CVs <- function(dt){
@@ -1115,7 +1389,8 @@ plot_CVs_reordered_simple <- function(CVs, dt, reorder ){
   
 }
 
-plot_CVs_counts_Precursor <- function(CVs,dt = dt, reorder = T, conditions = "All"){
+plot_CVs_counts_Precursor <- function(CVs,dt = dt, reorder = T, conditions = NULL,
+                                      type = c("Identified","Quantified","CV < 40","CV < 20","CV < 10")){
   
   if(length(conditions)>=1) {
     CVs <- CVs %>%
@@ -1123,34 +1398,51 @@ plot_CVs_counts_Precursor <- function(CVs,dt = dt, reorder = T, conditions = "Al
   }
   
   CVs2 = CVs %>%
-    filter(!is.na(cvs)) %>%
+    # filter(!is.na(cvs)) %>%
     ungroup() %>%
     group_by(R.Condition) %>%
-    summarise(CV10 = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge)[cvs<10]),
-              CV20 = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge)[cvs<20]),
+    summarise(Identified = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge)),
+              Quantified = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge)[!is.na(cvs)]),
               CV40 = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge)[cvs<40]),
-              zAll = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge))) %>%
-    gather(key = "CV_cutoff", value = "value", which(str_detect(names(.),pattern = "CV|All"))) %>%
-    mutate(CV_cutoff = gsub(CV_cutoff, pattern = "CV",replacement = "CV < " )) %>%
-    mutate(CV_cutoff = gsub(CV_cutoff, pattern = "z",replacement = "" )) 
+              CV20 = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge)[cvs<20]),
+              CV10 = n_distinct(paste0(EG.ModifiedPeptide, FG.Charge)[cvs<10])) %>%
+    gather(key = "CV_cutoff", value = "value", which(str_detect(names(.),pattern = "CV|Quantified|Identified"))) %>%
+    mutate(CV_cutoff = gsub(CV_cutoff, pattern = "CV",replacement = "CV < " ))
   
   CVs2$CV_cutoff <- factor(CVs2$CV_cutoff, levels = unique(CVs2$CV_cutoff))
+  
+  if(length(type)>=1) {
+    CVs2 <- CVs2 %>%
+      filter(CV_cutoff %in% type)
+  }
+  
+  hjust_adjustment = function(data){
+    data %>%
+      mutate(hjust_value = ifelse(value>max(value)/3, 1.1, -0.1))
+  }
+  
+  CVs2 <- CVs2 %>%
+    ungroup() %>%
+    group_by(R.Condition) %>% 
+    group_modify(~hjust_adjustment(.x))
   
   CVs2_plot = ggplot(CVs2, aes(x= CV_cutoff, y = value, fill = CV_cutoff))+
     geom_bar(stat = "identity", color= "black")+
     geom_text(aes(label=round(value,0)#, y = ifelse(value>40000,value,value+40000)
-    ), hjust=1.2, angle=90,size=3.5, color= "black")+
+    ), hjust=CVs2$hjust_value, angle=90,size=3.5, color= "black")+
     theme_bw()+
     theme(legend.position = "none",
           axis.text.x = element_text(angle=90),
           axis.title.x = element_blank())+
     facet_grid(~R.Condition)+
-    scale_fill_manual(values = c("#004E82","#0071BC","#E4EFF7", "#83929C" ))
+    scale_fill_manual(values = c("#004E82","#0071BC","#E4EFF7", "#83929C", "#999999"))
   
   return(CVs2_plot)
   
 }
-plot_CVs_counts_Protein <- function(CVs_prot, dt = dt, reorder = T, conditions = "All"){
+
+plot_CVs_counts_Protein <- function(CVs_prot, dt = dt, reorder = T, conditions = NULL,
+                                    type = c("Identified","Quantified","CV < 40","CV < 20","CV < 10")){
   
   if(length(conditions)>=1) {
     CVs_prot <- CVs_prot %>%
@@ -1158,34 +1450,48 @@ plot_CVs_counts_Protein <- function(CVs_prot, dt = dt, reorder = T, conditions =
   }
   
   CVs_count = CVs_prot %>%
-    filter(!is.na(cvs)) %>%
+    # filter(!is.na(cvs)) %>%
     ungroup() %>%
     group_by(R.Condition) %>%
-    summarise(CV10 = n_distinct(PG.ProteinGroups[cvs<10]),
-              CV20 = n_distinct(PG.ProteinGroups[cvs<20]),
+    summarise(Identified = n_distinct(PG.ProteinGroups),
+              Quantified = n_distinct(PG.ProteinGroups[!is.na(cvs)]),
               CV40 = n_distinct(PG.ProteinGroups[cvs<40]),
-              zAll = n_distinct(PG.ProteinGroups)) %>%
-    gather(key = "CV_cutoff", value = "value", which(str_detect(names(.),pattern = "CV|All"))) %>%
-    mutate(CV_cutoff = gsub(CV_cutoff, pattern = "CV",replacement = "CV < " )) %>%
-    mutate(CV_cutoff = gsub(CV_cutoff, pattern = "z",replacement = "" )) 
+              CV20 = n_distinct(PG.ProteinGroups[cvs<20]),
+              CV10 = n_distinct(PG.ProteinGroups[cvs<10])) %>%
+    gather(key = "CV_cutoff", value = "value", which(str_detect(names(.),pattern = "CV|Quantified|Identified"))) %>%
+    mutate(CV_cutoff = gsub(CV_cutoff, pattern = "CV",replacement = "CV < " ))
   
   CVs_count$CV_cutoff <- factor(CVs_count$CV_cutoff, levels = unique(CVs_count$CV_cutoff))
+  
+  if(length(type)>=1) {
+    CVs_count <- CVs_count %>%
+      filter(CV_cutoff %in% type)
+  }
+  
+  hjust_adjustment = function(data){
+    data %>%
+      mutate(hjust_value = ifelse(value>max(value)/3, 1.1, -0.1))
+  }
+  
+  CVs_count <- CVs_count %>%
+    ungroup() %>%
+    group_by(R.Condition) %>% 
+    group_modify(~hjust_adjustment(.x))
   
   CVs_count_plot = ggplot(CVs_count, aes(x= CV_cutoff, y = value, fill = CV_cutoff))+
     geom_bar(stat = "identity", color= "black")+
     geom_text(aes(label=round(value,0)
-    ), hjust=1.2, angle=90,size=3.5, color= "black")+
+    ), hjust=CVs_count$hjust_value, angle=90,size=3.5, color= "black")+
     theme_bw()+
     theme(legend.position = "none",
           axis.text.x = element_text(angle=90),
           axis.title.x = element_blank())+
-    facet_grid(~R.Condition) +
-    scale_fill_manual(values = c("#004E82","#0071BC","#E4EFF7", "#83929C" ))
+    facet_grid(~R.Condition)+
+    scale_fill_manual(values = c("#004E82","#0071BC","#E4EFF7", "#83929C", "#999999"))
   
   return(CVs_count_plot)
   
 }
-
 
 
 
@@ -1241,12 +1547,13 @@ plot_TICS <- function(dt){
     mutate(rep_id = paste0(R.Condition,"_", R.Replicate)) %>%
     dplyr::select(FG.MS2RawQuantity, EG.ApexRT, rep_id) %>%
     mutate(rt_bin = cut_interval(EG.ApexRT,length = 0.5)) %>%
+    # mutate(rt_bin = cut_number(EG.ApexRT,n= 30)) %>%
     group_by(rt_bin,rep_id) %>%
     summarise(Int = sum(FG.MS2RawQuantity)) %>%
     mutate(RT = as.numeric(substr(rt_bin,start = 2, stop = str_locate(rt_bin, pattern = ",")-1)))
   
   a = ggplot(dt2, aes(x= RT, y = Int, color= rep_id, group = rep_id))+
-    geom_line(size=1.5)+
+    geom_line(size=1)+
     theme_bw()+
     # theme(legend.position = "none")+
     ggtitle("TIC of identified peptides")
