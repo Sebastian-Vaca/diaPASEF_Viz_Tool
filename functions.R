@@ -10,6 +10,8 @@ library(plotly)
 library(shinyWidgets)
 library(ggrepel)
 library(heatmaply)
+library(ggseqlogo)
+
 
 
 ####
@@ -17,16 +19,6 @@ library(heatmaply)
 
 ##Load data
 #Load datafrom spectronaut
-
-# load_spectronaut_data <- function(raw_input_file_path, metadata_filepath){
-#   metadata <- fread(metadata_filepath)
-#   
-#   raw_input_file <- fread(raw_input_file_path) %>%
-#     dplyr::select(-R.Condition ,- R.Replicate ) %>%
-#     left_join(metadata)
-#   
-#   return(raw_input_file)
-# }
 
 load_spectronaut_data <- function(raw_input_file_path, metadata_filepath){
   metadata <- fread(metadata_filepath)
@@ -47,7 +39,6 @@ load_spectronaut_data <- function(raw_input_file_path, metadata_filepath){
   
   return(raw_input_file)
 }
-
 
 # load data from DIANN/TimsDIANN
 load_diann_data <- function(raw_input_file, metadata_filepath){
@@ -173,21 +164,21 @@ format_DIANN_timsDIANN_toSpectronautFormat_longformat <- function(raw_input_file
 }
 
 # load data
-load_data <- function(raw_input_file, metadata_filepath, software, needs_reassign){
-  if(software == "DIANN"){
-    df <- load_diann_data(raw_input_file, metadata_filepath)
-  }
-  
-  if(software == "Spectronaut"){
-    df <- load_spectronaut_data(raw_input_file, needs_reassign, metadata_filepath )
-  }
-  
-  if(software == "null"){df<- data.frame(Error = "Select Software")}
-  if(is.null(software)) {df<- data.frame(Error = "Select Software")}
-  
-  return(df)
-  
-}
+# load_data <- function(raw_input_file, metadata_filepath, software, needs_reassign){
+#   if(software == "DIANN"){
+#     df <- load_diann_data(raw_input_file, metadata_filepath)
+#   }
+#   
+#   if(software == "Spectronaut"){
+#     df <- load_spectronaut_data(raw_input_file, needs_reassign, metadata_filepath )
+#   }
+#   
+#   if(software == "null"){df<- data.frame(Error = "Select Software")}
+#   if(is.null(software)) {df<- data.frame(Error = "Select Software")}
+#   
+#   return(df)
+#   
+# }
 load_data_2 <- function(raw_input_file_path, metadata_filepath, software, needs_reassign){
   if(software %in% c("timsDIANN", "DIANN")){
     df <- load_diann_data_2(raw_input_file_path = raw_input_file_path,

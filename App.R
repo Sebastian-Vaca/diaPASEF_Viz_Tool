@@ -42,7 +42,7 @@ ui <- dashboardPage(
       # First tab content
       tabItem(tabName = "Parameters",
               shinyjs::useShinyjs(),
-              titlePanel("dia-PASEF Visualization Tools (v23.10.2)"),
+              titlePanel("dia-PASEF Visualization Tools (v23.10.3)"),
               radioButtons("radio_input_software",
                            label = h3("Which software?"),
                            choices = list("Spectronaut" = "Spectronaut",
@@ -91,6 +91,27 @@ ui <- dashboardPage(
                                    "text/comma-separated-values,text/plain",
                                    ".csv"))),
               br(),
+              
+              
+              # hidden(tabBox(id = "DataFiltering_tabBox",
+              #                title = tagList(shiny::icon("gear"), "Filtering parameters"), width =9,
+              #   tabPanel("q-values", 
+              #            checkboxInput("DataFiltering_EG_qValue_checkbox", "Elution Group q-value", value = T),
+              #            textInput("DataFiltering_EG_qValue", "Max q-value:", value = 0.01),
+              #            checkboxInput("DataFiltering_PG_qValue_checkbox", "Protein Group q-value", value = T),
+              #            textInput("DataFiltering_PG_qValue", "Max q-value:", value = 0.01)),
+              #   tabPanel("Peptide Length", 
+              #            checkboxInput("DataFiltering_PeptideLength_checkbox", "Peptide Length", value = F),
+              #            textInput("DataFiltering_PeptideLength", "min peptideLength:", value = 6),
+              #            textInput("DataFiltering_PeptideLength", "min peptideLength:", value = 50)),
+              #   tabPanel("Proteotypicity", 
+              #            checkboxInput("DataFiltering_Proteotypicity_checkbox", "Keep only Proteotypic peptides", value = F)),
+              # actionButton(inputId = "DataFiltering_ActionButton", align = "left",label = "Update Filtering Criteria", style="color: #FFFFFF; background-color: #0071BC"))
+              # )
+              
+              uiOutput("DataFiltering_tabBox")
+              
+              
               # img(src = "diaQuito2.png", height = 150, width = 150),
               # img(src = "shiny.PNG", height = 50, width = 50)
               
@@ -436,6 +457,32 @@ server <- function(input, output) {
   observeEvent(input$file1, {
     toggle("groups_id_csv",condition = T)
   })
+  
+  # observeEvent(input$file1, {
+  #   toggleElement("DataFiltering_tabBox", condition = T)
+  # })
+
+  output$DataFiltering_tabBox <- renderUI({
+    req(input$groups_id_csv)
+    
+    tabBox(id = "DataFiltering_tabBox",
+           title = tagList(shiny::icon("gear"), "Filtering parameters"), width =9,
+           tabPanel("q-values",
+                    checkboxInput("DataFiltering_EG_qValue_checkbox", "Elution Group q-value", value = T),
+                    textInput("DataFiltering_EG_qValue", "Max q-value:", value = 0.01),
+                    checkboxInput("DataFiltering_PG_qValue_checkbox", "Protein Group q-value", value = T),
+                    textInput("DataFiltering_PG_qValue", "Max q-value:", value = 0.01)),
+           tabPanel("Peptide Length",
+                    checkboxInput("DataFiltering_PeptideLength_checkbox", "Peptide Length", value = F),
+                    textInput("DataFiltering_PeptideLength", "min peptideLength:", value = 6),
+                    textInput("DataFiltering_PeptideLength", "min peptideLength:", value = 50)),
+           tabPanel("Proteotypicity",
+                    checkboxInput("DataFiltering_Proteotypicity_checkbox", "Keep only Proteotypic peptides", value = F)),
+           actionButton(inputId = "DataFiltering_ActionButton", align = "left",label = "Update Filtering Criteria", style="color: #FFFFFF; background-color: #0071BC"))
+    
+  })
+
+  
   
   
   ## UI
