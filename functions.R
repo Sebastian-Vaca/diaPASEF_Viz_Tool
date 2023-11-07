@@ -17,200 +17,234 @@ library(ggseqlogo)
 ####
 ###  Functions
 
-##Load data
-#Load datafrom spectronaut
 
-load_spectronaut_data <- function(raw_input_file_path, metadata_filepath){
+load_spectronaut_data<-function(raw_input_file_path,metadata_filepath){
   metadata <- fread(metadata_filepath)
   
   raw_input_file <- fread(raw_input_file_path) %>%
-    filter(EG.Qvalue<0.01,
-           PG.Qvalue<0.01) %>%
-    dplyr::select(-R.Condition ,- R.Replicate ) %>%
-    left_join(metadata)
+    dplyr::select(-R.Condition, -R.Replicate) %>%
+    left_join(metadata) %>%
+    mutate(PEP.PeptideLength = nchar(PEP.StrippedSequence)) %>%
+    mutate(PEP.IsProteotypic = as.logical(PEP.IsProteotypic))
   
   if(any(names(raw_input_file) %in% c("EG.IsImputed"))){
     
-    raw_input_file <- raw_input_file %>%
-      mutate(EG.IsImputed = as.logical(EG.IsImputed)) %>%
+    raw_input_file<-raw_input_file %>%
+      mutate(EG.IsImputed=as.logical(EG.IsImputed)) %>%
       filter(EG.IsImputed==F)
-    
   }
   
   return(raw_input_file)
 }
 
-# load data from DIANN/TimsDIANN
-load_diann_data <- function(raw_input_file, metadata_filepath){
-  metadata <- fread(metadata_filepath)
-  
-  df <- format_DIANN_toSpectronautFormat(raw_input_file, metadata)
-  
-  return(df)
-}
-format_DIANN_toSpectronautFormat <- function(raw_input_file, metadata){
-  diann_2 <- raw_input_file %>%
-    rename(PG.ProteinGroups = Protein.Group,
-           EG.ModifiedPeptide = Modified.Sequence,
-           FG.Charge = Precursor.Charge) %>%
-    mutate(PG.Qvalue = 0, EG.Qvalue = 0)%>%
-    gather(key = R.FileName, value = FG.MS2Quantity, which(str_detect(names(.),pattern = "\\.d$|\\.bdia$|\\.dia$"))) %>%
-    left_join(metadata, by = "R.FileName")%>%
-    # dplyr::select(R.FileName,
-    #        R.Condition,
-    #        R.Replicate,
-    #        PG.ProteinGroups,
-    #        PG.Qvalue,
-    #        EG.ModifiedPeptide,
-    #        EG.Qvalue,
-    #        FG.Charge,
-    #        FG.MS2Quantity)%>%
-    mutate(FG.MS2Quantity = as.numeric(FG.MS2Quantity))
-  return(diann_2)
-}
+### load data from DIANN/TimsDIANN
 
-
-load_diann_data_2 <- function(raw_input_file_path, metadata_filepath, software){
-  metadata <- fread(metadata_filepath)
-  
-  df <- format_DIANN_timsDIANN_toSpectronautFormat_longformat(raw_input_file_path, metadata, software)
-  
-  return(df)
-}
-
-format_DIANN_timsDIANN_toSpectronautFormat_longformat <- function(raw_input_file_path, metadata,software){
-  if(software == "timsDIANN"){
+format_DIANN_timsDIANN_toSpectronautFormat_longformat<-function(raw_input_file_path,metadata,software){
+  if(software=="timsDIANN"){
     
-    cols_selected = c(
-      "File.Name" , "Protein.Group" , "Protein.Ids" , "Protein.Names" , "PG.Normalised" ,
-      "Genes" , "Modified.Sequence" , "Precursor.Charge" ,
-      "Q.Value" , "Protein.Q.Value" , "PG.Q.Value" , "GG.Q.Value",
-      "Precursor.Quantity" , "Precursor.Normalised" ,
-      "RT" ,  "Predicted.RT", "CScore" ,
-      "Precursor.Mz" , "Exp.1/K0","Precursor.FWHM","RT.Start","RT.Stop")
+    cols_selected=c(
+      "File.Name","Protein.Group","Protein.Ids","Protein.Names","PG.Normalised",
+      "Genes","Modified.Sequence","Precursor.Charge",
+      "Q.Value","Protein.Q.Value","PG.Q.Value","GG.Q.Value",
+      "Precursor.Quantity","Precursor.Normalised",
+      "RT","Predicted.RT","CScore",
+      "Precursor.Mz","Exp.1/K0","Precursor.FWHM","RT.Start","RT.Stop", "Proteotypic")
     
-    diann <- fread(raw_input_file_path, 
-                   select = cols_selected) %>%
-      filter(Protein.Q.Value <0.01,
-             PG.Q.Value<0.01,
-             GG.Q.Value<0.01) %>%
+    diann<-fread(raw_input_file_path,
+                 select=cols_selected)%>%
       rename(
-        R.FileName= File.Name,
-        PG.Genes= Genes,
-        PG.ProteinAccessions= Protein.Ids,
-        PG.ProteinGroups= Protein.Group,
-        PG.ProteinNames= Protein.Names,
-        PG.Qvalue= PG.Q.Value,
-        PG.MS2Quantity= PG.Normalised,
-        EG.IonMobility= `Exp.1/K0`,
-        EG.ModifiedPeptide= Modified.Sequence,
-        EG.Qvalue= Q.Value,
-        EG.ApexRT= RT,
-        EG.RTPredicted= Predicted.RT,
-        EG.Cscore= CScore,
-        FG.Charge= Precursor.Charge,
-        FG.PrecMz= Precursor.Mz,
-        FG.MS2Quantity= Precursor.Quantity,
-        FG.MS2RawQuantity= Precursor.Normalised,
-        EG.FWHM = Precursor.FWHM) %>% 
-      left_join(metadata, by = "R.FileName")%>%
-      mutate(FG.MS2Quantity = as.numeric(FG.MS2Quantity)) %>%
-      mutate(EG.PeakWidth = (RT.Stop-RT.Start)*60)
+        R.FileName=File.Name,
+        PG.Genes=Genes,
+        PG.ProteinAccessions=Protein.Ids,
+        PG.ProteinGroups=Protein.Group,
+        PG.ProteinNames=Protein.Names,
+        PG.Qvalue=PG.Q.Value,
+        PG.MS2Quantity=PG.Normalised,
+        EG.IonMobility=`Exp.1/K0`,
+        EG.ModifiedPeptide=Modified.Sequence,
+        EG.Qvalue=Q.Value,
+        EG.ApexRT=RT,
+        EG.RTPredicted=Predicted.RT,
+        EG.Cscore=CScore,
+        FG.Charge=Precursor.Charge,
+        FG.PrecMz=Precursor.Mz,
+        FG.MS2Quantity=Precursor.Quantity,
+        FG.MS2RawQuantity=Precursor.Normalised,
+        EG.FWHM=Precursor.FWHM,
+        PEP.IsProteotypic = Proteotypic)%>%
+      left_join(metadata,by="R.FileName")%>%
+      mutate(FG.MS2Quantity=as.numeric(FG.MS2Quantity))%>%
+      mutate(EG.PeakWidth=(RT.Stop-RT.Start)*60)%>%
+      mutate(PEP.IsProteotypic = as.logical(PEP.IsProteotypic))
   }
   
-  if(software == "DIANN"){
+  if(software=="DIANN"){
     
-    cols_selected = c(
-      "File.Name" , "Protein.Group" , "Protein.Ids" , "Protein.Names" , "PG.Normalised" ,
-      "Genes" , "Modified.Sequence" , "Precursor.Charge" ,
-      "Q.Value" , "Protein.Q.Value" , "PG.Q.Value" , "GG.Q.Value",
-      "Precursor.Quantity" , "Precursor.Normalised" ,
-      "RT" ,  "Predicted.RT", "CScore" , "IM","RT.Start","RT.Stop")
+    cols_selected=c(
+      "File.Name","Protein.Group","Protein.Ids","Protein.Names","PG.Normalised",
+      "Genes","Stripped.Sequence","Modified.Sequence","Precursor.Charge",
+      "Q.Value","Protein.Q.Value","PG.Q.Value","GG.Q.Value",
+      "Precursor.Quantity","Precursor.Normalised",
+      "RT","Predicted.RT","CScore","IM","RT.Start","RT.Stop","Proteotypic")
     
-    diann <- fread(raw_input_file_path, 
-                   select = cols_selected) %>%
-      filter(Protein.Q.Value <0.01,
-             PG.Q.Value<0.01,
-             GG.Q.Value<0.01) %>%
+    diann<-fread(raw_input_file_path, select=cols_selected) %>%
       rename(
-        # R.Condition= ,
-        # R.Replicate = ,
-        R.FileName= File.Name,
-        PG.Genes= Genes,
-        PG.ProteinAccessions= Protein.Ids,
-        PG.ProteinGroups= Protein.Group,
-        PG.ProteinNames= Protein.Names,
-        PG.Qvalue= PG.Q.Value,
-        PG.MS2Quantity= PG.Normalised,
-        EG.IonMobility= IM,
-        EG.ModifiedPeptide= Modified.Sequence,
-        EG.Qvalue= Q.Value,
-        EG.ApexRT= RT,
-        EG.RTPredicted= Predicted.RT,
-        EG.Cscore= CScore,
-        FG.Charge= Precursor.Charge,
-        # FG.PrecMz= Precursor.Mz,
-        FG.MS2Quantity= Precursor.Quantity,
-        FG.MS2RawQuantity= Precursor.Normalised) %>% 
-      left_join(metadata, by = "R.FileName")%>%
+        R.FileName = File.Name,
+        PG.Genes = Genes,
+        PG.ProteinAccessions = Protein.Ids,
+        PG.ProteinGroups = Protein.Group,
+        PG.ProteinNames = Protein.Names,
+        PG.Qvalue = PG.Q.Value,
+        PG.MS2Quantity = PG.Normalised,
+        EG.IonMobility = IM,
+        EG.ModifiedPeptide = Modified.Sequence,
+        PEP.StrippedSequence = Stripped.Sequence,
+        EG.Qvalue = Q.Value,
+        EG.ApexRT = RT,
+        EG.RTPredicted = Predicted.RT,
+        EG.Cscore = CScore,
+        FG.Charge = Precursor.Charge,
+        #FG.PrecMz=Precursor.Mz,
+        FG.MS2Quantity = Precursor.Quantity,
+        FG.MS2RawQuantity = Precursor.Normalised,
+        PEP.IsProteotypic = Proteotypic)%>%
+      left_join(metadata,by="R.FileName")%>%
       mutate(FG.MS2Quantity = as.numeric(FG.MS2Quantity))%>%
-      mutate(EG.PeakWidth = (RT.Stop-RT.Start)*60)
+      mutate(EG.PeakWidth = (RT.Stop - RT.Start)*60)%>%
+      mutate(PEP.PeptideLength = nchar(PEP.StrippedSequence)) %>%
+      mutate(PEP.IsProteotypic = as.logical(PEP.IsProteotypic))
   }
-  
-  
-  
   
   return(diann)
 }
 
-# load data
-# load_data <- function(raw_input_file, metadata_filepath, software, needs_reassign){
-#   if(software == "DIANN"){
-#     df <- load_diann_data(raw_input_file, metadata_filepath)
-#   }
-#   
-#   if(software == "Spectronaut"){
-#     df <- load_spectronaut_data(raw_input_file, needs_reassign, metadata_filepath )
-#   }
-#   
-#   if(software == "null"){df<- data.frame(Error = "Select Software")}
-#   if(is.null(software)) {df<- data.frame(Error = "Select Software")}
-#   
-#   return(df)
-#   
-# }
-load_data_2 <- function(raw_input_file_path, metadata_filepath, software, needs_reassign){
-  if(software %in% c("timsDIANN", "DIANN")){
-    df <- load_diann_data_2(raw_input_file_path = raw_input_file_path,
-                            metadata_filepath =  metadata_filepath,
-                            software =  software)
-  }
-  
 
-  if(software == "Spectronaut"){
-    df <- load_spectronaut_data(raw_input_file_path, metadata_filepath )
+load_diann_data_2<-function(raw_input_file_path,metadata_filepath,software){
+  metadata<-fread(metadata_filepath)
+  
+  df<-format_DIANN_timsDIANN_toSpectronautFormat_longformat(raw_input_file_path,metadata,software)
+  
+  return(df)
+}
+
+
+
+load_data_2<-function(raw_input_file_path,metadata_filepath,software,needs_reassign){
+  if(software%in%c("timsDIANN","DIANN")){
+    df <- load_diann_data_2(raw_input_file_path = raw_input_file_path,
+                            metadata_filepath = metadata_filepath,
+                            software = software)
   }
   
-  if(software == "null"){df<- data.frame(Error = "Select Software")}
-  if(is.null(software)) {df<- data.frame(Error = "Select Software")}
+  
+  if(software=="Spectronaut"){
+    df <- load_spectronaut_data(raw_input_file_path,metadata_filepath)
+  }
+  
+  if(software=="null"){ df <- data.frame(Error="SelectSoftware") }
+  if(is.null(software)){ df <- data.frame(Error="SelectSoftware") }
   
   return(df)
   
 }
 
-remove_data_based_on_metadata <- function(dt, remove_selected_runs = F){
+remove_data_based_on_metadata<-function(dt,remove_selected_runs=F){
   
   if(remove_selected_runs){
     dt2 <- dt %>%
       mutate(remove = ifelse(is.na(remove),0,remove)) %>%
       filter(remove != 1)
-    } else{
-        dt2 <- dt
-      }
+  }else{
+    dt2 <- dt
+  }
   
   return(dt2)
 }
 
+load_data_filter_data<-function(dt_unfiltered,
+                                filter_EG_qValue = T,
+                                EG_qValue_cutoff = 0.01,
+                                filter_PG_qValue = T,
+                                PG_qValue_cutoff = 0.01,
+                                filter_PeptideLenght = F,
+                                PeptideLenght_min_cutoff = 7,
+                                PeptideLenght_max_cutoff = 35,
+                                filter_isProteotypic = F
+                                # filter_Protein_qValue=T,
+                                # Protein_qValue_cutoff=0.01,
+                                # filter_GG_qValue=T,
+                                # GG_qValue_cutoff=0.01
+){
+  
+  dt = dt_unfiltered %>%
+    mutate(EG.Qvalue = as.numeric(EG.Qvalue)) %>%
+    mutate(PG.Qvalue = as.numeric(PG.Qvalue)) %>%
+    mutate(PEP.PeptideLength = as.numeric(PEP.PeptideLength))
+
+  
+  
+  if(filter_EG_qValue){
+    dt <- dt %>%
+      filter(EG.Qvalue <= EG_qValue_cutoff)
+  }
+  
+  if(filter_PG_qValue){
+    dt <- dt %>%
+      filter(PG.Qvalue <= PG_qValue_cutoff)
+  }
+  
+  if(filter_PeptideLenght){
+    dt <- dt %>%
+      filter(PEP.PeptideLength >= PeptideLenght_min_cutoff) %>%
+      filter(PEP.PeptideLength <= PeptideLenght_max_cutoff)
+    
+  }
+  
+  if(filter_isProteotypic){
+    dt <- dt %>%
+      filter(PEP.IsProteotypic)
+  }
+  
+  # if(filter_Protein_qValue){
+  # dt <- dt %>%
+  # filter(Protein.Q.Value <= Protein_qValue_cutoff)
+  # }
+  # 
+  # if(filter_GG_qValue){
+  # dt <- dt %>%
+  # filter(GG.Q.Value <= GG_qValue_cutoff)
+  # }
+  
+  return(dt)
+  
+}
+
+
+load_data_input_verification_afterLoad<-function(dt){
+  
+  report_names<- dt %>%
+    names()
+  report_names = data.frame(column_name = report_names, in_report =T)
+  
+  columns_needed <- c("R.FileName", "PG.ProteinGroups", "PG.ProteinAccessions",
+                      "PG.ProteinNames", "PG.MS2Quantity", "PG.Genes",
+                      "EG.ModifiedPeptide", "FG.Charge", "EG.Qvalue",
+                      "Protein.Q.Value", "PG.Qvalue", "GG.Q.Value",
+                      "FG.MS2Quantity", "FG.MS2RawQuantity", "EG.ApexRT",
+                      "EG.RTPredicted", "EG.Cscore", "EG.IonMobility",
+                      "RT.Start", "RT.Stop", "R.Condition",
+                      "R.Replicate", "order", "remove", "Concentration",
+                      "EG.PeakWidth","PEP.StrippedSequence","PEP.IsProteotypic","PEP.PeptideLength")
+  
+  columns_needed = data.frame(column_name = columns_needed, necessary_column = T) %>%
+    # mutate(is_present = ifelse(column_name %in% report_names,1,0)) %>%
+    full_join(report_names, by = "column_name")
+  
+  return(columns_needed)
+}
+
+
+## Metadata template
 create_metadata_template <- function(input_filepath, software = NULL){
   
   if(software %in% c("timsDIANN", "DIANN")){

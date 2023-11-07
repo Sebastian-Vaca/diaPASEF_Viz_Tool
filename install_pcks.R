@@ -18,6 +18,7 @@ if(!require("shinycssloaders", quietly = T)) {install.packages("shinycssloaders"
 if(!require("GGally", quietly = T)) {install.packages("GGally")}
 if(!require("shinyjs", quietly = T)) {install.packages("shinyjs")}
 if(!require("FactoMineR", quietly = T)) {install.packages("FactoMineR")}
+if(!require("ggseqlogo", quietly = T)) {install.packages("ggseqlogo")}
 
 
 

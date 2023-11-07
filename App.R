@@ -20,14 +20,12 @@ ui <- dashboardPage(
                menuSubItem('Correlations/PCA', tabName = "metrics_correlations", icon = icon("bolt")),
                menuSubItem('IM vs m/z heatmap', tabName = "metrics_IM_mz_map", icon = icon("bolt"))
                ),
-      
       menuItem("Upset plots", tabName = "Upset_plots", icon = icon("stats", lib= "glyphicon")),
       menuItem("PTMs", tabName = "PTMs", icon = icon("flask")),
       menuItem("Dilution series", tabName = "DilSeries", icon = icon("vial")),
       menuItem("Targeted Peptide/Protein Tools", tabName = "PRM", icon = icon("bullseye", lib = "font-awesome")),
       menuItem("GCT Builder", tabName = "GCT", icon = icon("table")),
-      
-      
+
       tags$hr(),
       checkboxInput("reassign_checkbox_input", "Reassign/Reorder groups", T),
       checkboxInput("remove_checkbox_input", "Remove selected runs", F),
@@ -42,7 +40,7 @@ ui <- dashboardPage(
       # First tab content
       tabItem(tabName = "Parameters",
               shinyjs::useShinyjs(),
-              titlePanel("dia-PASEF Visualization Tools (v23.10.3)"),
+              titlePanel("dia-PASEF Visualization Tools (v23.11.1)"),
               radioButtons("radio_input_software",
                            label = h3("Which software?"),
                            choices = list("Spectronaut" = "Spectronaut",
@@ -92,6 +90,8 @@ ui <- dashboardPage(
                                    ".csv"))),
               br(),
               
+              actionButton(inputId = "DataFiltering_ActionButton", align = "left",label = "Update Filtering Criteria", style="color: #FFFFFF; background-color: #0071BC"),
+              
               
               # hidden(tabBox(id = "DataFiltering_tabBox",
               #                title = tagList(shiny::icon("gear"), "Filtering parameters"), width =9,
@@ -121,6 +121,7 @@ ui <- dashboardPage(
               tabsetPanel(type = "tabs",
                           
                           tabPanel("Metadata", tableOutput("metadata_table")),
+                          tabPanel("Column_check", tableOutput("column_check")),
                           tabPanel("Reports",
                                    useShinyjs(),
                                    h4("Cofficients of variation"),
@@ -474,12 +475,10 @@ server <- function(input, output) {
                     textInput("DataFiltering_PG_qValue", "Max q-value:", value = 0.01)),
            tabPanel("Peptide Length",
                     checkboxInput("DataFiltering_PeptideLength_checkbox", "Peptide Length", value = F),
-                    textInput("DataFiltering_PeptideLength", "min peptideLength:", value = 6),
-                    textInput("DataFiltering_PeptideLength", "min peptideLength:", value = 50)),
+                    textInput("DataFiltering_PeptideLength_MinValue", "Min peptideLength:", value = 6),
+                    textInput("DataFiltering_PeptideLength_MaxValue", "Max peptideLength:", value = 50)),
            tabPanel("Proteotypicity",
-                    checkboxInput("DataFiltering_Proteotypicity_checkbox", "Keep only Proteotypic peptides", value = F)),
-           actionButton(inputId = "DataFiltering_ActionButton", align = "left",label = "Update Filtering Criteria", style="color: #FFFFFF; background-color: #0071BC"))
-    
+                    checkboxInput("DataFiltering_Proteotypicity_checkbox", "Keep only Proteotypic peptides", value = F)))
   })
 
   
@@ -501,16 +500,8 @@ server <- function(input, output) {
   ## Global datasets
   ####
   
-  # raw_input <- reactive({
-  #   
-  #   req(input$file1)
-  #   df = fread(input$file1$datapath)
-  #   
-  #   df
-  # })
-  # 
   
-  data_input <- reactive({
+  data_input_unfiltered <- reactive({
     
     
     req(input$file1)
@@ -524,19 +515,51 @@ server <- function(input, output) {
              "timsDIANN" = "timsDIANN",
              "Spectronaut" = "Spectronaut"))
     
-    # df <- load_data(raw_input_file = raw_input(),
-    #                 metadata_filepath = input$groups_id_csv$datapath,
-    #                 software = software_used,
-    #                 needs_reassign = input$reassign_checkbox_input)
-    
     df <- load_data_2(raw_input_file_path = input$file1$datapath,
-                    metadata_filepath = input$groups_id_csv$datapath,
-                    software = software_used,
-                    needs_reassign = input$reassign_checkbox_input)
-    
-    df <- df %>% remove_data_based_on_metadata(remove_selected_runs = input$remove_checkbox_input)
+                      metadata_filepath = input$groups_id_csv$datapath,
+                      software = software_used,
+                      needs_reassign = input$reassign_checkbox_input)
     df
   })
+  
+  data_column_verif <- reactive({
+    req(data_input_unfiltered())
+    
+    load_data_input_verification_afterLoad(dt = data_input_unfiltered())
+  })
+  
+  output$column_check <- renderTable({
+    return(data_column_verif())
+  })
+  
+  
+  
+  data_input <- reactiveVal(NULL)
+  
+  observeEvent(input$DataFiltering_ActionButton, {
+    if (!is.null(data_input_unfiltered())) {
+    
+      req(data_input_unfiltered())
+      df = data_input_unfiltered()
+      
+      # df <- df %>% remove_data_based_on_metadata(remove_selected_runs = input$remove_checkbox_input)
+      
+      df <- load_data_filter_data(dt_unfiltered = df,
+                                  filter_EG_qValue = input$DataFiltering_EG_qValue_checkbox,
+                                  EG_qValue_cutoff = as.numeric(input$DataFiltering_EG_qValue),
+                                  filter_PG_qValue = input$DataFiltering_PG_qValue_checkbox,
+                                  PG_qValue_cutoff = as.numeric(input$DataFiltering_PG_qValue),
+                                  filter_PeptideLenght = input$DataFiltering_PeptideLength_checkbox,
+                                  PeptideLenght_min_cutoff = as.numeric(input$DataFiltering_PeptideLength_MinValue),
+                                  PeptideLenght_max_cutoff = as.numeric(input$DataFiltering_PeptideLength_MaxValue),
+                                  filter_isProteotypic = input$DataFiltering_Proteotypicity_checkbox)
+      
+      data_input(df)
+      
+      }
+    
+  })
+
   
   metadata_input <- reactive({
     req(input$groups_id_csv)
