@@ -219,6 +219,40 @@ load_data_filter_data<-function(dt_unfiltered,
   
 }
 
+load_data_filter_text<-function(filter_EG_qValue = T,
+                                EG_qValue_cutoff = 0.01,
+                                filter_PG_qValue = T,
+                                PG_qValue_cutoff = 0.01,
+                                filter_PeptideLenght = F,
+                                PeptideLenght_min_cutoff = 7,
+                                PeptideLenght_max_cutoff = 35,
+                                filter_isProteotypic = F){
+  
+  x = "Data shown has:"
+  
+  if(filter_EG_qValue){
+    x = c(x,paste0("- EG q-value <= ", EG_qValue_cutoff))
+  }
+  
+  if(filter_PG_qValue){
+    x = c(x, paste0( "- PG q-value <= ", PG_qValue_cutoff))
+  }
+  
+  if(filter_PeptideLenght){
+    x = c(x, paste0( "- ", PeptideLenght_min_cutoff, "<= Peptide lenght <= ", PeptideLenght_max_cutoff))
+    
+  }
+  
+  if(filter_isProteotypic){
+    x = c(x, paste0( "- Only Proteotypic peptides"))
+    
+  }
+  
+  x = paste0(x, collapse = "<br>")
+  return(x)
+  
+}
+
 
 load_data_input_verification_afterLoad<-function(dt){
   
@@ -1091,12 +1125,12 @@ plot_peptide_length <- function(dt,conditions = NULL,
   
   
   if(type == "freqpoly"){
-    G = ggplot(dt1, aes(x = PeptideLength, color= R.Condition))+
+    G = ggplot(dt1, aes(x = PeptideLength, color= as.character(R.Condition)))+
       geom_freqpoly(binwidth=1)+
       theme_bw()+
       scale_fill_viridis(discrete = T)+
-      theme(axis.text.x = element_text(angle=90),
-            legend.position = "none")
+      theme(axis.text.x = element_text(angle=90))+
+      guides(color=guide_legend(title="Condition"))
   }
   
   return(G)

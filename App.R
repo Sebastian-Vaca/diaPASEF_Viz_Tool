@@ -29,8 +29,8 @@ ui <- dashboardPage(
       tags$hr(),
       checkboxInput("reassign_checkbox_input", "Reassign/Reorder groups", T),
       checkboxInput("remove_checkbox_input", "Remove selected runs", F),
-      
-      tags$hr()
+      tags$hr(),
+      htmlOutput("DataFilter_Parameters_dynamicText")
       
 
     )
@@ -89,8 +89,13 @@ ui <- dashboardPage(
                                    "text/comma-separated-values,text/plain",
                                    ".csv"))),
               br(),
-              
-              actionButton(inputId = "DataFiltering_ActionButton", align = "left",label = "Update Filtering Criteria", style="color: #FFFFFF; background-color: #0071BC"),
+              fluidRow(uiOutput("DataFiltering_tabBox")),
+              # br(),
+              fluidRow(
+                hidden(actionButton(inputId = "DataFiltering_ActionButton", align = "left",
+                                    label = "Update Filtering Criteria",
+                                    style="color: #FFFFFF; background-color: #FF9300")
+                       )),
               
               
               # hidden(tabBox(id = "DataFiltering_tabBox",
@@ -109,7 +114,7 @@ ui <- dashboardPage(
               # actionButton(inputId = "DataFiltering_ActionButton", align = "left",label = "Update Filtering Criteria", style="color: #FFFFFF; background-color: #0071BC"))
               # )
               
-              uiOutput("DataFiltering_tabBox")
+              
               
               
               # img(src = "diaQuito2.png", height = 150, width = 150),
@@ -459,9 +464,9 @@ server <- function(input, output) {
     toggle("groups_id_csv",condition = T)
   })
   
-  # observeEvent(input$file1, {
-  #   toggleElement("DataFiltering_tabBox", condition = T)
-  # })
+  observeEvent(input$groups_id_csv, {
+    toggleElement("DataFiltering_ActionButton", condition = T)
+  })
 
   output$DataFiltering_tabBox <- renderUI({
     req(input$groups_id_csv)
@@ -558,6 +563,28 @@ server <- function(input, output) {
       
       }
     
+  })
+  
+  DataFilter_Parameters_text <- reactiveVal(HTML("____________ Hello :) _____________"))
+  
+  observeEvent(input$DataFiltering_ActionButton, {
+    
+    text <- load_data_filter_text(filter_EG_qValue = input$DataFiltering_EG_qValue_checkbox,
+                                EG_qValue_cutoff = as.numeric(input$DataFiltering_EG_qValue),
+                                filter_PG_qValue = input$DataFiltering_PG_qValue_checkbox,
+                                PG_qValue_cutoff = as.numeric(input$DataFiltering_PG_qValue),
+                                filter_PeptideLenght = input$DataFiltering_PeptideLength_checkbox,
+                                PeptideLenght_min_cutoff = as.numeric(input$DataFiltering_PeptideLength_MinValue),
+                                PeptideLenght_max_cutoff = as.numeric(input$DataFiltering_PeptideLength_MaxValue),
+                                filter_isProteotypic = input$DataFiltering_Proteotypicity_checkbox)
+
+    text = as.character(text)
+    
+    DataFilter_Parameters_text(text)
+  })
+  
+  output$DataFilter_Parameters_dynamicText <- renderUI({
+    HTML(DataFilter_Parameters_text())
   })
 
   
@@ -1274,7 +1301,7 @@ output$upset_plot_precs_Download <- downloadHandler(
     return(mod)
   })
   
-  observeEvent(input$groups_id_csv, {
+  observeEvent(input$DataFiltering_ActionButton, {
     updateSelectInput(inputId = "ptm_counts_selectinput", choices = unique(Modifications_found()))
   })
   
