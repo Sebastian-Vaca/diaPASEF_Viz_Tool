@@ -253,7 +253,15 @@ ui <- dashboardPage(
                                      hidden(div(id= "ChargeStates_Plot_hider", plotOutput("ChargeStates_Plot") %>% withSpinner() ))
                                    )),
                           tabPanel("TICs of ID peptides", plotlyOutput("plot_TICS", height = "800px", width = "800px")),
-                          
+                          tabPanel("Sequence motif",
+                                   fluidRow(
+                                     selectizeInput(inputId = "SequenceMotif_conditions", label ="Select Conditions [Leave blank to see all]",
+                                                    choices = "Null", multiple = T, options = list(maxItems = 10)),
+                                     selectizeInput(inputId = "SequenceMotif_PeptideLength", label ="Select peptide lenght",
+                                                    choices = NULL, multiple = F),
+                                     actionButton(inputId = "SequenceMotif_actionbutton",label = "Update plot", style="color: #FFFFFF; background-color: #0071BC"),
+                                     hidden(div(id= "SequenceMotif_Plot_hider", plotOutput("SequenceMotif_Plot") %>% withSpinner() ))
+                                   )),
                           )
       ),
       
@@ -566,6 +574,14 @@ server <- function(input, output) {
   })
   
   DataFilter_Parameters_text <- reactiveVal(HTML("____________ Hello :) _____________"))
+  
+  observe({
+    shinyjs::runjs(
+      '$("#DataFilter_Parameters_dynamicText").hover(function(){
+        $(this).attr("title", "Sebastian says hello!");
+      });'
+    )
+  })
   
   observeEvent(input$DataFiltering_ActionButton, {
     
@@ -1226,9 +1242,10 @@ output$upset_plot_precs_Download <- downloadHandler(
     })
   })
   
-  observeEvent(input$groups_id_csv, {
+  observeEvent(input$DataFiltering_ActionButton, {
     updateSelectInput(inputId = "PeptideLength_conditions", choices = unique(metadata_input()[,"R.Condition"]))
     updateSelectInput(inputId = "ChargeStates_conditions", choices = unique(metadata_input()[,"R.Condition"]))
+    updateSelectInput(inputId = "SequenceMotif_conditions", choices = unique(metadata_input()[,"R.Condition"]))
     
   })
   
@@ -1252,6 +1269,8 @@ output$upset_plot_precs_Download <- downloadHandler(
     })
   })
   
+
+  
   observeEvent(input$ChargeStates_actionbutton, {
     req(input$file1)
     req(input$groups_id_csv)
@@ -1264,6 +1283,35 @@ output$upset_plot_precs_Download <- downloadHandler(
       isolate({
         G = plot_charge_states(dt = data_input(),
                                conditions = input$ChargeStates_conditions)
+      })
+      
+      G
+      
+    })
+  })
+  
+  
+  ## Sequence motif
+  
+  
+  observeEvent(input$DataFiltering_ActionButton, {
+    updateSelectInput(inputId = "SequenceMotif_PeptideLength", choices = unique(data_input()[,"PEP.PeptideLength"]))
+    
+  })
+  
+  observeEvent(input$SequenceMotif_actionbutton, {
+    req(input$file1)
+    req(input$groups_id_csv)
+    
+    show("SequenceMotif_Plot_hider")
+    toggle(id = "SequenceMotif_Plot", condition = T)
+    
+    output$SequenceMotif_Plot<- renderPlot({
+      
+      isolate({
+        G = plot_SequenceMotif_by_PeptideLength(dt= data_input(),
+                                                Peptide_Length = input$SequenceMotif_PeptideLength,
+                                                conditions = input$SequenceMotif_conditions)
       })
       
       G

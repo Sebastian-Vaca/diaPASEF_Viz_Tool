@@ -1634,6 +1634,41 @@ plot_TICS <- function(dt){
   return(G)
 }
 
+
+plot_SequenceMotif_by_PeptideLength <- function(dt, Peptide_Length, conditions = NULL){
+  
+  if(!is.null(conditions)){
+    dt <- dt %>%
+      filter(R.Condition %in% conditions)
+  }
+  
+  dt2 <- dt %>%
+    filter(PEP.PeptideLength == Peptide_Length)
+  
+  ggseqlogo::ggseqlogo(dt2$PEP.StrippedSequence, seq_type='aa')
+  
+  dt_list = dt2 %>%
+    select(PEP.StrippedSequence, R.Condition) %>% 
+    distinct() %>%
+    group_by(R.Condition)%>% 
+    group_map(~.x)
+  
+  names(dt_list) <- dt2 %>%
+    select(PEP.StrippedSequence, R.Condition) %>% 
+    distinct() %>%
+    group_by(R.Condition)%>% 
+    group_map(~.y) %>%
+    unlist()
+  
+  dt_list <- lapply(dt_list, function(L){
+    L$PEP.StrippedSequence})
+  
+  G = ggseqlogo(dt_list,seq_type='aa', font="roboto_bold")
+  
+  return(G)
+  
+}
+
 #### QCs
 #### RTs
 
