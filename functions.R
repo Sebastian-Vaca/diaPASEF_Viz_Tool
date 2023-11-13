@@ -226,7 +226,8 @@ load_data_filter_text<-function(filter_EG_qValue = T,
                                 filter_PeptideLenght = F,
                                 PeptideLenght_min_cutoff = 7,
                                 PeptideLenght_max_cutoff = 35,
-                                filter_isProteotypic = F){
+                                filter_isProteotypic = F,
+                                remove_checkbox_input = F){
   
   x = "Data shown has:"
   
@@ -245,6 +246,11 @@ load_data_filter_text<-function(filter_EG_qValue = T,
   
   if(filter_isProteotypic){
     x = c(x, paste0( "- Only Proteotypic peptides"))
+    
+  }
+  
+  if(remove_checkbox_input){
+    x = c(x, paste0( "- Selected MS runs removed"))
     
   }
   

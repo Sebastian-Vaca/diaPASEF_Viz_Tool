@@ -28,7 +28,7 @@ ui <- dashboardPage(
 
       tags$hr(),
       checkboxInput("reassign_checkbox_input", "Reassign/Reorder groups", T),
-      checkboxInput("remove_checkbox_input", "Remove selected runs", F),
+      # checkboxInput("remove_checkbox_input", "Remove selected runs", F),
       tags$hr(),
       htmlOutput("DataFilter_Parameters_dynamicText")
       
@@ -491,7 +491,8 @@ server <- function(input, output) {
                     textInput("DataFiltering_PeptideLength_MinValue", "Min peptideLength:", value = 6),
                     textInput("DataFiltering_PeptideLength_MaxValue", "Max peptideLength:", value = 50)),
            tabPanel("Proteotypicity",
-                    checkboxInput("DataFiltering_Proteotypicity_checkbox", "Keep only Proteotypic peptides", value = F)))
+                    checkboxInput("DataFiltering_Proteotypicity_checkbox", "Keep only Proteotypic peptides", value = F)),
+           tabPanel("Remove MS runs",checkboxInput("remove_checkbox_input", "Remove selected runs in metadata file (Remove column == 1)", F)))
   })
 
   
@@ -555,7 +556,7 @@ server <- function(input, output) {
       req(data_input_unfiltered())
       df = data_input_unfiltered()
       
-      # df <- df %>% remove_data_based_on_metadata(remove_selected_runs = input$remove_checkbox_input)
+      df <- df %>% remove_data_based_on_metadata(remove_selected_runs = input$remove_checkbox_input)
       
       df <- load_data_filter_data(dt_unfiltered = df,
                                   filter_EG_qValue = input$DataFiltering_EG_qValue_checkbox,
@@ -592,7 +593,8 @@ server <- function(input, output) {
                                 filter_PeptideLenght = input$DataFiltering_PeptideLength_checkbox,
                                 PeptideLenght_min_cutoff = as.numeric(input$DataFiltering_PeptideLength_MinValue),
                                 PeptideLenght_max_cutoff = as.numeric(input$DataFiltering_PeptideLength_MaxValue),
-                                filter_isProteotypic = input$DataFiltering_Proteotypicity_checkbox)
+                                filter_isProteotypic = input$DataFiltering_Proteotypicity_checkbox,
+                                remove_checkbox_input = input$remove_checkbox_input)
 
     text = as.character(text)
     
