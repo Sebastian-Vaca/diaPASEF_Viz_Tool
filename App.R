@@ -4,6 +4,7 @@ library(shiny)
 library(shinyjs)
 library(shinycssloaders)
 source("functions.R")
+source("functions_diaPASEF_Opt.R")
 
 ui <- dashboardPage(
   dashboardHeader(title = "dia-PASEF Viz Tools",titleWidth = 250),
@@ -25,7 +26,8 @@ ui <- dashboardPage(
       menuItem("Dilution series", tabName = "DilSeries", icon = icon("vial")),
       menuItem("Targeted Peptide/Protein Tools", tabName = "PRM", icon = icon("bullseye", lib = "font-awesome")),
       menuItem("GCT Builder", tabName = "GCT", icon = icon("table")),
-
+      menuItem("DIA-PASEF Optimization", tabName = "diaPASEF", icon = icon("table")),
+      
       tags$hr(),
       checkboxInput("reassign_checkbox_input", "Reassign/Reorder groups", T),
       # checkboxInput("remove_checkbox_input", "Remove selected runs", F),
@@ -411,13 +413,56 @@ ui <- dashboardPage(
                           
               )
       ),
-      ## GCT
+      # GCT
       tabItem(tabName = "GCT",
               tabsetPanel(type = "tabs",
                           tabPanel("GCT Builder",
                                    h3("GCT tools: More features coming soon!"),
                                    downloadButton(outputId = "download_gct_PGLevel", label = "Download GCT file (Protein Level)")
                           )
+              )
+      ),
+
+      ## dia-PASEF Optimization
+      
+      tabItem(tabName = "diaPASEF",
+              tabsetPanel(type = "tabs",
+                          tabPanel("Load Spectral Library",
+                                   h3("dia PASEF Optimization"),
+                                   fileInput("diaPASEF_SpectralLib", "Choose Spectral Library file",
+                                             multiple = TRUE,
+                                             accept = c("text/csv",
+                                                        "text/comma-separated-values,text/plain",
+                                                        ".csv",
+                                                        "text/tsv",
+                                                        ".xls",
+                                                        ".tsv")),
+                                   column(uiOutput("diaPASEF_UI"),width = 10),
+                                   column(textOutput("diaPasef_SpectralLib_text"), width=10),
+                                   tableOutput("diaPasef_SpectralLib_mz_im_data_header")
+                                   ),
+                          tabPanel("diaPASEF Parameters",
+                                   h3("dia PASEF Optimization: Parameters"),
+                                   numericInput("im_range_lower", "Ion Mobility: lower range ", 0.7, min = 0.6, max = 1.6),
+                                   numericInput("im_range_upper", "Ion Mobility: upper range ", 1.3, min = 0.7, max = 1.7),
+                                   numericInput("mz_range_lower", "m/z: lower range ", 350, min = 100, max = 1950),
+                                   numericInput("mz_range_upper", "m/z: upper range  ", 1200, min = 150, max = 2000),
+                                   numericInput("mz_window_width", "DIA m/z window width", 35, min = 1, max = 250),
+                                   numericInput("Add_mz_overlaps_width", "DIA window overlap (Da)", 1, min = 0.5, max = 200),
+                                   actionButton(inputId = "diaPASEF_method_actionbutton",label = "Optimize dia-PASEF method", style="color: #FFFFFF; background-color: #0071BC")
+
+                          ),
+                          tabPanel("diaPASEF Method",
+                                   h3("dia PASEF Optimization"),
+                                   tableOutput("dia_Pasef_method_table") %>% withSpinner()
+                                   
+                          ),
+                          tabPanel("diaPASEF method plot",
+                                   h3("dia PASEF Optimization"),
+                                   plotOutput("diaPASEF_plot") %>% withSpinner()
+                                   
+                          )
+                          
               )
       )
     ),
@@ -1754,6 +1799,137 @@ output$upset_plot_precs_Download <- downloadHandler(
                        ofile= file,
                        precision = 3, appenddim = F, ver = 3)},
     contentType = "gct")
+  
+  #### DIA_PASEF Optimization
+  dia_Pasef_SpectralLib_colNames <- reactive({
+    
+    
+    req(input$diaPASEF_SpectralLib)
+    
+    
+    df <- read_column_names(filepath = input$diaPASEF_SpectralLib$datapath)
+    df
+  })
+  
+  output$diaPASEF_UI <- renderUI({
+    
+    req(dia_Pasef_SpectralLib_colNames())
+    
+    fluidRow(selectInput(inputId = "diaPASEF_im_column_name", label ="Select im_column_name",
+                choices = NULL, multiple = F),
+    selectInput(inputId = "diaPASEF_precursor_mz_column_name", label ="Select precursor_mz_column_name",
+                choices = NULL, multiple = F),
+    # selectInput(inputId = "diaPASEF_retention_time_column_name", label ="Select retention_time_column_name",
+    # choices = NULL, multiple = F),
+    selectInput(inputId = "diaPASEF_sequence_column_name", label ="Select sequence_column_name",
+                choices = NULL, multiple = F),
+    selectInput(inputId = "diaPASEF_charge_column_name", label ="Select charge_column_name",
+                choices = NULL, multiple = F),
+    # selectInput(inputId = "diaPASEF_score_wt_column_name", label ="Select score_wt_column_name",
+    # choices = NULL, multiple = F)
+    actionButton(inputId = "diaPASEF_actionbutton",label = "Read Spectral Library", style="color: #FFFFFF; background-color: #0071BC"))
+    
+  })
+  
+
+  observeEvent(input$diaPASEF_SpectralLib, {
+    updateSelectInput(inputId = "diaPASEF_im_column_name", choices = unique(dia_Pasef_SpectralLib_colNames()[,"columnnames"]))
+    updateSelectInput(inputId = "diaPASEF_precursor_mz_column_name", choices = unique(dia_Pasef_SpectralLib_colNames()[,"columnnames"]))
+    updateSelectInput(inputId = "diaPASEF_sequence_column_name", choices = unique(dia_Pasef_SpectralLib_colNames()[,"columnnames"]))
+    updateSelectInput(inputId = "diaPASEF_charge_column_name", choices = unique(dia_Pasef_SpectralLib_colNames()[,"columnnames"]))
+    
+  })
+  
+  diaPasef_SpectralLib_mz_im_data <- reactiveVal(NULL)
+  
+  observeEvent(input$diaPASEF_actionbutton, {
+    if (!is.null(dia_Pasef_SpectralLib_colNames())) {
+      
+      req(input$diaPASEF_SpectralLib)
+      
+      df <- read_and_format_Spectral_library(input$diaPASEF_SpectralLib$datapath,
+                                             im_column_name = input$diaPASEF_im_column_name,
+                                             precursor_mz_column_name = input$diaPASEF_precursor_mz_column_name,
+                                             retention_time_column_name = NULL,
+                                             sequence_column_name = input$diaPASEF_sequence_column_name,
+                                             charge_column_name = input$diaPASEF_charge_column_name,
+                                             score_wt_column_name = NULL)
+      
+      diaPasef_SpectralLib_mz_im_data(df)
+      
+    }
+    
+  })
+  
+  observeEvent(input$diaPASEF_actionbutton, {
+    output$diaPasef_SpectralLib_text <- renderText({"Please verfiy that the right columns were selected using the table below. If everything looks ok. Go to the next tab"})
+  })
+  
+  output$diaPasef_SpectralLib_mz_im_data_header <- renderTable({
+    req(diaPasef_SpectralLib_mz_im_data())
+
+    return(head(diaPasef_SpectralLib_mz_im_data()))
+  })
+  
+  dia_Pasef_method_params <- reactive({
+    
+    req(diaPasef_SpectralLib_mz_im_data())
+    
+    
+    DIA_params = list(data_mz_im = diaPasef_SpectralLib_mz_im_data(),
+                      im_range_lower = input$im_range_lower,
+                      im_range_upper = input$im_range_upper,
+                      mz_range_lower = input$mz_range_lower,
+                      mz_range_upper = input$mz_range_upper,
+                      mz_window_width = input$mz_window_width,
+                      mz_window_lower_percentile_limit = 0.1,
+                      mz_window_upper_percentile_limit = 0.95,
+                      im_offset_lower = 0.01,
+                      im_offset_upper = 0.01,
+                      Add_mz_overlaps_width = input$Add_mz_overlaps_width)
+    DIA_params
+    
+  })
+  
+  
+  dia_Pasef_method <- reactiveVal(NULL)
+  
+  observeEvent(input$diaPASEF_method_actionbutton, {
+    if (!is.null(diaPasef_SpectralLib_mz_im_data())) {
+      
+      req(diaPasef_SpectralLib_mz_im_data())
+      # req(dia_Pasef_method_params())
+      
+      
+      df <- Optimize_dia_PASEF_method_from_SpectralLib(diaPasef_SpectralLib_mz_im_data(),
+                                                       DIA_params = dia_Pasef_method_params())
+      dia_Pasef_method(df)
+      
+    }
+    
+  })
+  
+  
+  output$dia_Pasef_method_table <- renderTable({
+    req(diaPasef_SpectralLib_mz_im_data())
+    req(dia_Pasef_method())
+    
+    return(format_DIA_PASEF_method(dia_Pasef_method()))
+  })
+  
+  output$diaPASEF_plot <- renderPlot({
+    req(diaPasef_SpectralLib_mz_im_data())
+    req(dia_Pasef_method())
+    req(dia_Pasef_method_params())
+    
+    
+    plot_dia_PASEF_method_over_SpectralLib(diaPasef_SpectralLib_mz_im_data(),
+                                           dia_Pasef_method(),
+                                           DIA_params = dia_Pasef_method_params())
+  })
+  
+
+  
 }
 
 # Create Shiny app ----
