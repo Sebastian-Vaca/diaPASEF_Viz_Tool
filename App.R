@@ -454,6 +454,8 @@ ui <- dashboardPage(
                           ),
                           tabPanel("diaPASEF Method",
                                    h3("dia PASEF Optimization"),
+                                   hidden(
+                                     downloadButton(outputId = "dia_Pasef_method_downloadButton", label = "Download DIA_PASEF Method")),
                                    tableOutput("dia_Pasef_method_table") %>% withSpinner()
                                    
                           ),
@@ -1909,6 +1911,25 @@ output$upset_plot_precs_Download <- downloadHandler(
     
   })
   
+  observeEvent(dia_Pasef_method(), {
+    toggle("dia_Pasef_method_downloadButton",condition = T)
+  })
+  
+  output$dia_Pasef_method_downloadButton <- downloadHandler(
+    
+    filename = function() { 
+      file_name = paste0("DIA_PASEF_", input$mz_window_width,"Da_",
+                         input$Add_mz_overlaps_width,"DaOverlap_",
+                         paste0(input$im_range_lower,"_",input$im_range_upper,"IM_"),
+                         paste0(input$mz_range_lower,"_",input$mz_range_upper,"MZ")) %>%
+        gsub(pattern = "\\.",replacement = "p") %>%
+        paste0(".txt")
+      
+    },
+    
+    content = function(file) {
+      fwrite(format_DIA_PASEF_method(dia_Pasef_method()), file, sep = ",")
+    })
   
   output$dia_Pasef_method_table <- renderTable({
     req(diaPasef_SpectralLib_mz_im_data())
