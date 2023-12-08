@@ -42,7 +42,7 @@ ui <- dashboardPage(
       # First tab content
       tabItem(tabName = "Parameters",
               shinyjs::useShinyjs(),
-              titlePanel("dia-PASEF Visualization Tools (v23.11.1)"),
+              titlePanel("dia-PASEF Visualization Tools (v23.12.1)"),
               radioButtons("radio_input_software",
                            label = h3("Which software?"),
                            choices = list("Spectronaut" = "Spectronaut",
@@ -1817,15 +1817,15 @@ output$upset_plot_precs_Download <- downloadHandler(
     
     req(dia_Pasef_SpectralLib_colNames())
     
-    fluidRow(selectInput(inputId = "diaPASEF_im_column_name", label ="Select im_column_name",
+    fluidRow(selectInput(inputId = "diaPASEF_im_column_name", label ="Select column with Ion Mobility values",
                 choices = NULL, multiple = F),
-    selectInput(inputId = "diaPASEF_precursor_mz_column_name", label ="Select precursor_mz_column_name",
+    selectInput(inputId = "diaPASEF_precursor_mz_column_name", label ="Select column with Precursor m/z values",
                 choices = NULL, multiple = F),
     # selectInput(inputId = "diaPASEF_retention_time_column_name", label ="Select retention_time_column_name",
     # choices = NULL, multiple = F),
-    selectInput(inputId = "diaPASEF_sequence_column_name", label ="Select sequence_column_name",
+    selectInput(inputId = "diaPASEF_sequence_column_name", label ="Select column with Peptide Sequence",
                 choices = NULL, multiple = F),
-    selectInput(inputId = "diaPASEF_charge_column_name", label ="Select charge_column_name",
+    selectInput(inputId = "diaPASEF_charge_column_name", label ="Select column with Precursor Charge State values",
                 choices = NULL, multiple = F),
     # selectInput(inputId = "diaPASEF_score_wt_column_name", label ="Select score_wt_column_name",
     # choices = NULL, multiple = F)
