@@ -17,8 +17,10 @@ if(!require("colourvalues", quietly = T)) {install.packages("colourvalues")}
 if(!require("shinycssloaders", quietly = T)) {install.packages("shinycssloaders")}
 if(!require("GGally", quietly = T)) {install.packages("GGally")}
 if(!require("shinyjs", quietly = T)) {install.packages("shinyjs")}
+if(!require("tidygenomics", quietly = T)) {install.packages("tidygenomics")}
 if(!require("FactoMineR", quietly = T)) {install.packages("FactoMineR")}
-if(!require("ggseqlogo", quietly = T)) {install.packages("ggseqlogo")}
+if(!require("devtools", quietly = T)) {install.packages("devtools")}
+if(!require("ggseqlogo", quietly = T)) {devtools::install_github("omarwagih/ggseqlogo")}
 
 
 

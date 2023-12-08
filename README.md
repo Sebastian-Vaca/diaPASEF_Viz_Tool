@@ -70,7 +70,7 @@ runApp()
 
 -   DIA-NN and TIMS DIA-NN: The input is the main report (.tsv file that does not have any suffix). This file is a long format file. The app does not recognize the matrix files. This file is easy to identify, it is usually the largest file created by DIA-NN or TIMS DIA-NN.
 
--   Spectronaut: Please export the report using the template found [here](Spectronaut_report_template/).
+-   Spectronaut: Please export the report using the template found [here](Spectronaut_report_template/). Old versions of the report won't work anymore. Please use the latest version found [here](Spectronaut_report_template/).
 
 ### Tutorial
 
